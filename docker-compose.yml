@@ -1,0 +1,92 @@
+networks:
+  dns_network:
+    external: true
+
+services:
+  influxdb:
+    image: influxdb:1.8.10
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    networks:
+      - dns_network
+    environment:
+      - INFLUXDB_ADMIN_USER=${INFLUXDB_USER}
+      - INFLUXDB_ADMIN_PASSWORD=${INFLUXDB_PASSWORD}
+      - INFLUXDB_REPORTING_DISABLED=true
+    volumes:
+      - ./influxdb/data:/var/lib/influxdb
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=""
+    ports:
+      - "3000:3000"
+    networks:
+      - dns_network
+    depends_on:
+      - influxdb
+    restart: unless-stopped
+
+  receiver-app:
+    image: receiver-app:latest
+    build:
+      context: ./receiver
+      dockerfile: Dockerfile
+    container_name: receiver-app
+    networks:
+      - dns_network
+    depends_on:
+      - influxdb
+    environment:
+      - WEATHER_API_BASEURL=https://api.open-meteo.com/v1/forecast
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  collector-vitoria:
+    image: collector-app:latest
+    build:
+      context: ./collector
+      dockerfile: Dockerfile
+    container_name: collector-vitoria
+    networks:
+      - dns_network
+    depends_on:
+      - receiver-app
+    environment:
+      - WEATHER_API_BASEURL=https://api.open-meteo.com/v1/forecast
+      - WEATHER_API_TIMEZONE=America/Sao_Paulo
+      - WEATHER_API_LATITUDE=-20.3222
+      - WEATHER_API_LONGITUDE=-40.3381
+      - WEATHER_API_DATALIST=temperature_2m,relative_humidity_2m
+      - WEATHER_API_LOCATION=vitoria
+    ports:
+      - "8081:8080"
+    restart: unless-stopped
+
+  # collector-tokyo:
+  #   image: collector-app:latest
+  #   build:
+  #     context: ./collector
+  #     dockerfile: Dockerfile
+  #   container_name: collector-tokyo
+    # networks:
+    #   dns_network:
+    #     ipv4_address: 172.20.0.23
+  #   depends_on:
+  #     - receiver-app
+  #   environment:
+  #     - WEATHER_API_BASEURL=https://api.open-meteo.com/v1/forecast
+  #     - WEATHER_API_TIMEZONE=America/Sao_Paulo
+  #     - WEATHER_API_LATITUDE=35.652832
+  #     - WEATHER_API_LONGITUDE=139.839478
+  #     - WEATHER_API_DATALIST=temperature_2m,relative_humidity_2m
+  #     - WEATHER_API_LOCATION=tokyo
+  #   ports:
+  #     - "8082:8080"
+  #   restart: always
+

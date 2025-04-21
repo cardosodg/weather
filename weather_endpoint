@@ -1,0 +1,1 @@
+curl "https://api.open-meteo.com/v1/forecast?latitude=-20.3194&longitude=-40.3378&current=temperature_2m,relative_humidity_2m&timezone=America%2FSao_Paulo"
